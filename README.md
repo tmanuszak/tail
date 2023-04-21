@@ -1,0 +1,1 @@
+Profiling a tail function.
