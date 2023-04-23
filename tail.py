@@ -1,4 +1,11 @@
 import cProfile, pstats, random, os, collections
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+from scipy.optimize import curve_fit
+
+NUM_TRIALS = 100  # number of trials
+MAX_SEQ_SIZE = 10 ** 8
 
 # simple slice
 def tail_v1(sequence, n):
@@ -16,36 +23,74 @@ functions = [tail_v1, tail_v2]
 
 # Returning trials-many running times of each function with sequence of 
 # total_numbers ints and a random (valid) n.
-def profile(total_numbers: int, trials: int):
-	# will be returned
-	# results[function name] = [running times of each trial]
-	results = collections.defaultdict(list)
-
+def profile(sequence_size, prof_data):
 	# make sequence all 1's for consistency
-	sequence = [1] * total_numbers
+	sequence = [1] * sequence_size
+	# make n a random valid index
+	n = random.randint(0, sequence_size)
+	# profile each function
+	for function in functions:
+		filename = "{}.prof".format(function.__name__)
+		pf = cProfile.runctx(statement='{}(sequence, n)'.format(function.__name__), 
+				globals={'{}'.format(function.__name__): function},
+				locals={'sequence': sequence, 'n': n},
+				filename=filename)
+		stats = pstats.Stats(filename)
+		prof_data[function.__name__].append(stats.total_tt)
+		os.remove(filename)
+	return prof_data
 
-	# profile each function trials-many times
-	for trial in range(trials):
-		# make n a random valid index
-		n = random.randint(0, total_numbers)
-		# profile each function
-		for function in functions:
-			filename = "{}_{}.prof".format(function.__name__, trial)
-			pf = cProfile.runctx(statement='{}(sequence, n)'.format(function.__name__), 
-					globals={'{}'.format(function.__name__): function},
-					locals={'sequence': sequence, 'n': n},
-					filename=filename)
-			stats = pstats.Stats(filename)
-			results[function.__name__].append(stats.total_tt)
-			os.remove(filename)
-	return results
+def plot_prof_data(prof_data):
+	# Define an exponential function to fit
+	def exponential_func(x, a, b, c):
+		return a * np.exp(b * x) + c
 
-def add_prof_data_to_graph(current_graph, prof_data):
-	return NotImplementedError
+	# Convert defaultdict to pandas DataFrame
+	df = pd.DataFrame(prof_data)
+
+	# Reshape the DataFrame so that each row corresponds to an (x, y, function) tuple
+	df = pd.melt(df, var_name='function', value_name='y', ignore_index=False)
+
+	# Add an 'x' column to the DataFrame for seq size
+	arr = np.geomspace(1, MAX_SEQ_SIZE, NUM_TRIALS)
+	df['x'] = np.concatenate((arr, arr))
+
+	# Create the plot with y-axis on a logarithmic scale
+	fig, ax = plt.subplots(figsize=(12, 8))
+	n_colors = len(df['function'].unique())
+	colors = plt.get_cmap('gist_rainbow')(np.linspace(0, 1, n_colors))
+	for i, (function, group) in enumerate(df.groupby('function')):
+		ax.semilogy(group['x'], group['y'], '.', color=colors[i], label=function)
+		
+		# Fit the exponential curve to the data
+		sigma = np.full_like(group['y'], 1e-8)
+		popt, pcov = curve_fit(exponential_func, group['x'], group['y'],
+			bounds=([1e-20, 1e-20, 1e-20], [1e-5, 1e-5, 1e-5]),
+			ftol=1e-20, xtol=1e-20)
+			 
+			#maxfev=10000, ftol=1e-15, xtol=1e-15, p0=(0,0,0), 
+			#sigma=sigma, absolute_sigma=True, method='lm', 
+			#loss='soft_l1')
+		y_fit = exponential_func(group['x'], *popt)
+
+		# Plot the exponential curve
+		ax.semilogy(group['x'], y_fit, '-', color=colors[i])
+
+	ax.legend()
+	ax.set_title('Plot Title')
+	ax.set_xlabel('Sequence Length (log scale)')
+	ax.set_ylabel('Running Time (log scale)')
+	ax.set_xscale('log', base=10)
+
+	plt.savefig('/mnt/c/Users/Trey/Downloads/myplot.png')
+	return
 
 if __name__ == "__main__":
-	trials = 50  # number of trials for each exponent below
-	# testing arrays up to size 3.6 GB 
-	for exponent in range(9):
-		prof_data = profile(10**exponent, trials)
+	# results[function name] = [running times of funtion]
+	prof_data = collections.defaultdict(list)
+
+	sequence_sizes = np.geomspace(1, MAX_SEQ_SIZE, NUM_TRIALS)
+	for sequence_size in sequence_sizes:
+		prof_data = profile(int(sequence_size), prof_data)
+	plot_prof_data(prof_data)
 
