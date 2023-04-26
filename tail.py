@@ -2,9 +2,12 @@ import cProfile, pstats, random, os, collections
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.optimize import curve_fit
+from scipy.interpolate import make_interp_spline
+import seaborn as sns
 
+# GLOBALS
 NUM_TRIALS = 100  # number of trials
+NUM_ROUNDS = 10  # number of rounds with randomized n in each trial
 MAX_SEQ_SIZE = 10 ** 8
 
 # simple slice
@@ -26,61 +29,46 @@ functions = [tail_v1, tail_v2]
 def profile(sequence_size, prof_data):
 	# make sequence all 1's for consistency
 	sequence = [1] * sequence_size
-	# make n a random valid index
-	n = random.randint(0, sequence_size)
-	# profile each function
-	for function in functions:
-		filename = "{}.prof".format(function.__name__)
-		pf = cProfile.runctx(statement='{}(sequence, n)'.format(function.__name__), 
-				globals={'{}'.format(function.__name__): function},
-				locals={'sequence': sequence, 'n': n},
-				filename=filename)
-		stats = pstats.Stats(filename)
-		prof_data[function.__name__].append(stats.total_tt)
-		os.remove(filename)
+	# for each round
+	for _ in range(NUM_ROUNDS):
+		n = random.randint(0, sequence_size)
+		# profile each function
+		for function in functions:
+			filename = "{}.prof".format(function.__name__)
+			pf = cProfile.runctx(statement='{}(sequence, n)'.format(function.__name__), 
+					globals={'{}'.format(function.__name__): function},
+					locals={'sequence': sequence, 'n': n},
+					filename=filename)
+			stats = pstats.Stats(filename)
+			prof_data[function.__name__].append(stats.total_tt)
+			os.remove(filename)
 	return prof_data
 
 def plot_prof_data(prof_data):
-	# Define an exponential function to fit
-	def exponential_func(x, a, b, c):
-		return a * np.exp(b * x) + c
-
 	# Convert defaultdict to pandas DataFrame
-	df = pd.DataFrame(prof_data)
-
+	df = pd.DataFrame(prof_data) 
 	# Reshape the DataFrame so that each row corresponds to an (x, y, function) tuple
 	df = pd.melt(df, var_name='function', value_name='y', ignore_index=False)
 
 	# Add an 'x' column to the DataFrame for seq size
-	arr = np.geomspace(1, MAX_SEQ_SIZE, NUM_TRIALS)
-	df['x'] = np.concatenate((arr, arr))
+	arr = np.repeat(np.geomspace(1, MAX_SEQ_SIZE, NUM_TRIALS), NUM_ROUNDS)
+	df['x'] = np.concatenate((arr,) * len(functions))
 
 	# Create the plot with y-axis on a logarithmic scale
 	fig, ax = plt.subplots(figsize=(12, 8))
 	n_colors = len(df['function'].unique())
 	colors = plt.get_cmap('gist_rainbow')(np.linspace(0, 1, n_colors))
 	for i, (function, group) in enumerate(df.groupby('function')):
-		ax.semilogy(group['x'], group['y'], '.', color=colors[i], label=function)
-		
-		# Fit the exponential curve to the data
-		sigma = np.full_like(group['y'], 1e-8)
-		popt, pcov = curve_fit(exponential_func, group['x'], group['y'],
-			bounds=([1e-20, 1e-20, 1e-20], [1e-5, 1e-5, 1e-5]),
-			ftol=1e-20, xtol=1e-20)
-			 
-			#maxfev=10000, ftol=1e-15, xtol=1e-15, p0=(0,0,0), 
-			#sigma=sigma, absolute_sigma=True, method='lm', 
-			#loss='soft_l1')
-		y_fit = exponential_func(group['x'], *popt)
+		x, y = group['x'], group['y']
+		sns.lineplot(x=x, y=y, label=function)
 
-		# Plot the exponential curve
-		ax.semilogy(group['x'], y_fit, '-', color=colors[i])
-
+	# plot metadata
 	ax.legend()
 	ax.set_title('Plot Title')
 	ax.set_xlabel('Sequence Length (log scale)')
 	ax.set_ylabel('Running Time (log scale)')
 	ax.set_xscale('log', base=10)
+	ax.set_yscale('log', base=10)
 
 	plt.savefig('/mnt/c/Users/Trey/Downloads/myplot.png')
 	return
