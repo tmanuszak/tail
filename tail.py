@@ -46,23 +46,34 @@ def tail_v6(sequence, n):
 			yield sequence[-index]
 	return generator()
 
+# called if sequence is an np array.
+# Same implementation as v1. Just done this way due to plot implementation.
+def tail_numpy(sequence, n):
+	return sequence[-n:]
+
 # name of functions that are profiled
-functions = [tail_v1, tail_v2, tail_v3, tail_v4, tail_v5, tail_v6]
+functions = [tail_v1, tail_v2, tail_v3, tail_v4, tail_v5, tail_v6, tail_numpy]
 
 # Returning trials-many running times of each function with sequence of 
 # total_numbers ints and a random (valid) n.
 def profile(sequence_size, prof_data):
 	# make sequence all 1's for consistency
 	sequence = [1] * sequence_size
+	sequence_np = np.ones(sequence_size)
 	# for each round
 	for _ in range(NUM_ROUNDS):
 		n = random.randint(0, sequence_size)
 		# profile each function
 		for function in functions:
 			filename = "{}.prof".format(function.__name__)
+			# if sequence is numpy or not
+			if function.__name__ == "tail_numpy":
+				seq = sequence_np
+			else:
+				seq = sequence
 			pf = cProfile.runctx(statement='{}(sequence, n)'.format(function.__name__), 
 					globals={'{}'.format(function.__name__): function},
-					locals={'sequence': sequence, 'n': n},
+					locals={'sequence': seq, 'n': n},
 					filename=filename)
 			stats = pstats.Stats(filename)
 			prof_data[function.__name__].append(stats.total_tt)
