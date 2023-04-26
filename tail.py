@@ -1,4 +1,5 @@
-import cProfile, pstats, random, os, collections
+import cProfile, pstats, random, os
+from collections import deque, defaultdict
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,8 +22,32 @@ def tail_v2(sequence, n):
 		result.append(sequence[i])
 	return result
 
+# List comp
+def tail_v3(sequence, n):
+	return [sequence[-i] for i in range(n, 0, -1)]
+
+# Deque for fun
+def tail_v4(sequence, n):
+	return deque(sequence, maxlen=n)
+
+# Return a generator for sequence. ONLY USE IF SEQUENCE WONT CHANGE AFTER CALL!
+def tail_v5(sequence, n):
+	def generator():
+		for index in range(n, 0, -1):
+			yield sequence[-index]
+	return generator()
+
+# a space efficient generator for sequence. ONLY USE IF SEQUENCE WONT CHANGE AFTER CALL!
+def tail_v6(sequence, n):
+	def generator():
+		index = n + 1
+		while index > 1:
+			index -= 1
+			yield sequence[-index]
+	return generator()
+
 # name of functions that are profiled
-functions = [tail_v1, tail_v2]
+functions = [tail_v1, tail_v2, tail_v3, tail_v4, tail_v5, tail_v6]
 
 # Returning trials-many running times of each function with sequence of 
 # total_numbers ints and a random (valid) n.
@@ -71,11 +96,12 @@ def plot_prof_data(prof_data):
 	ax.set_yscale('log', base=10)
 
 	plt.savefig('/mnt/c/Users/Trey/Downloads/myplot.png')
+	plt.savefig('./myplot.png')
 	return
 
 if __name__ == "__main__":
 	# results[function name] = [running times of funtion]
-	prof_data = collections.defaultdict(list)
+	prof_data = defaultdict(list)
 
 	sequence_sizes = np.geomspace(1, MAX_SEQ_SIZE, NUM_TRIALS)
 	for sequence_size in sequence_sizes:
