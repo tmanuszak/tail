@@ -7,9 +7,9 @@ import seaborn as sns
 import tail
 import globals
 
-# Returning trials-many running times of each function with sequence of 
-# total_numbers ints and a random (valid) n.
-def profile(sequence_size, prof_data):
+# Returning trials-many running times of each function with sequence of length 
+# sequence_size and a random (valid) n index.
+def time_profile(sequence_size, prof_data):
 	# make sequence all 1's for consistency
 	sequence = [1] * sequence_size
 	sequence_np = np.ones(sequence_size)
@@ -21,7 +21,7 @@ def profile(sequence_size, prof_data):
 			filename = f"{function.__name__}.prof"
 			# if sequence is numpy or not
 			pf = None
-			if function == tail.functions[-1]:
+			if "numpy" in function.__name__:
 				pf = cProfile.runctx(
 					statement=f'{function.__name__}(sequence, n)', 
 					globals={f'{function.__name__}': function},
@@ -65,5 +65,5 @@ def plot_prof_data(prof_data):
 	ax.set_xscale('log', base=10)
 	ax.set_yscale('log', base=10)
 
-	plt.savefig('./time-profile-plot1.png')
+	plt.savefig('./time-profile-plot.png')
 	return
