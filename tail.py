@@ -1,6 +1,13 @@
 from collections import deque
 import numpy as np
 
+def check_bounds(sequence, n):
+	if n == 0:
+		return []
+	elif n > len(sequence):
+		raise IndexError
+	return sequence	
+
 # simple slice
 def tail_slicing(sequence, n):
 	return sequence[-n:]
