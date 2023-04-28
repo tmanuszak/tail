@@ -6,6 +6,8 @@ This is a repo of my testing and profiling of various implementations of the cla
 
 Profiling experiment was done as follows for both time and memory usage. We generate a list of `NUM_TRIALS`-many sequence sizes, which grow geometrically up to and including the `MAX_SEQ_SIZE` global parameter. For each sequnce size, the tail implementations are tested on a sequence of 1's of length sequence size on a randomly generated requested index `n`. This trial is done `NUM_ROUNDS` times to get a good distribution on the index. 
 
+To run the script, run the command `python3 main.py time memory`. Omit either time or memory from the command if that profile is not desired.
+
 ## Contents
 
 - `global.py`: Global data for changing the experiment size.
