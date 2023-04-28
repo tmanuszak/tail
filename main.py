@@ -24,6 +24,7 @@ if __name__ == "__main__":
 		plot_prof_data(prof_data)
 	
 	if "memory" in args:
+		
 		# remove old data file
 		try:
 			os.remove("mem_data.bin")
